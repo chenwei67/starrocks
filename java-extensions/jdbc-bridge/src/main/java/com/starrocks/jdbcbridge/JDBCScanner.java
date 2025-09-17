@@ -17,6 +17,9 @@ package com.starrocks.jdbcbridge;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.File;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
@@ -41,8 +44,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
 
 public class JDBCScanner {
     private String driverLocation;
@@ -132,13 +133,15 @@ public class JDBCScanner {
         return GENERAL_JDBC_CLASS_SET.contains(clazz);
     }
 
-    private static final Map<String, Class> ENGINE_SPECIFIC_CLASS_MAPPING = new HashMap<String, Class>() {{
+    private static final Map<String, Class> ENGINE_SPECIFIC_CLASS_MAPPING = new HashMap<String, Class>() {
+        {
             put("com.clickhouse.data.value.UnsignedByte", Short.class);
             put("com.clickhouse.data.value.UnsignedShort", Integer.class);
             put("com.clickhouse.data.value.UnsignedInteger", Long.class);
             put("com.clickhouse.data.value.UnsignedLong", BigInteger.class);
             put("oracle.jdbc.OracleBlob", Blob.class);
-        }};
+        }
+    };
 
     private Class mapEngineSpecificClassType(Class<?> clazz) {
         String className = clazz.getName();
@@ -152,13 +155,13 @@ public class JDBCScanner {
         if (sqlArray == null) {
             return null;
         }
-        
+
         try {
             Object[] arrayData = (Object[]) sqlArray.getArray();
             if (arrayData == null) {
                 return "[]";
             }
-            
+
             // Convert array elements to appropriate format
             List<Object> convertedArray = new ArrayList<>();
             for (Object element : arrayData) {
@@ -175,7 +178,7 @@ public class JDBCScanner {
                     convertedArray.add(element.toString());
                 }
             }
-            
+
             // Use Jackson to serialize to JSON
             ObjectMapper mapper = new ObjectMapper();
             return mapper.writeValueAsString(convertedArray);
@@ -205,10 +208,10 @@ public class JDBCScanner {
         if (arrayObj == null) {
             return null;
         }
-        
+
         try {
             Object[] arrayData = null;
-            
+
             if (arrayObj.getClass().isArray()) {
                 // Handle Object[] case
                 arrayData = (Object[]) arrayObj;
@@ -220,11 +223,11 @@ public class JDBCScanner {
                 // Fallback: try to convert to string
                 return arrayObj.toString();
             }
-            
+
             if (arrayData == null) {
                 return "[]";
             }
-            
+
             // Convert array elements to appropriate format
             List<Object> convertedArray = new ArrayList<>();
             for (Object element : arrayData) {
@@ -241,7 +244,7 @@ public class JDBCScanner {
                     convertedArray.add(element.toString());
                 }
             }
-            
+
             // Use Jackson to serialize to JSON
             ObjectMapper mapper = new ObjectMapper();
             return mapper.writeValueAsString(convertedArray);
