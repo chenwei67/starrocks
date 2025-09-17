@@ -187,6 +187,70 @@ public class JDBCScanner {
         }
     }
 
+    /**
+     * Check if the object is a ClickHouse array (when className is java.lang.Object)
+     */
+    private boolean isClickHouseArray(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        // ClickHouse arrays are typically Object[] or List implementations
+        return obj.getClass().isArray() || obj instanceof java.util.List;
+    }
+
+    /**
+     * Convert ClickHouse array object to JSON string representation for StarRocks
+     */
+    private String convertClickHouseArrayToJson(Object arrayObj) throws Exception {
+        if (arrayObj == null) {
+            return null;
+        }
+        
+        try {
+            Object[] arrayData = null;
+            
+            if (arrayObj.getClass().isArray()) {
+                // Handle Object[] case
+                arrayData = (Object[]) arrayObj;
+            } else if (arrayObj instanceof java.util.List) {
+                // Handle List case
+                java.util.List<?> list = (java.util.List<?>) arrayObj;
+                arrayData = list.toArray();
+            } else {
+                // Fallback: try to convert to string
+                return arrayObj.toString();
+            }
+            
+            if (arrayData == null) {
+                return "[]";
+            }
+            
+            // Convert array elements to appropriate format
+            List<Object> convertedArray = new ArrayList<>();
+            for (Object element : arrayData) {
+                if (element == null) {
+                    convertedArray.add(null);
+                } else if (element instanceof String) {
+                    convertedArray.add(element);
+                } else if (element instanceof Number) {
+                    convertedArray.add(element);
+                } else if (element instanceof Boolean) {
+                    convertedArray.add(element);
+                } else {
+                    // For other types, convert to string
+                    convertedArray.add(element.toString());
+                }
+            }
+            
+            // Use Jackson to serialize to JSON
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.writeValueAsString(convertedArray);
+        } catch (Exception e) {
+            // If conversion fails, return string representation
+            return arrayObj.toString();
+        }
+    }
+
     // used for cpp interface
     public List<String> getResultColumnClassNames() {
         return resultColumnClassNames;
@@ -229,6 +293,9 @@ public class JDBCScanner {
                 } else if (resultObject instanceof java.sql.Array) {
                     // Handle JDBC Array type (for ClickHouse arrays)
                     dataColumn[resultNumRows] = convertArrayToJson((java.sql.Array) resultObject);
+                } else if (dataColumn instanceof Object[] && isClickHouseArray(resultObject)) {
+                    // Handle ClickHouse Array type (className is java.lang.Object but actual type is array)
+                    dataColumn[resultNumRows] = convertClickHouseArrayToJson(resultObject);
                 } else if (dataColumn instanceof String[] && resultObject instanceof String) {
                     // if both sides are String, assign value directly to avoid additional calls to getString
                     dataColumn[resultNumRows] = resultObject;
