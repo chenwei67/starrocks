@@ -15,6 +15,7 @@
 package com.starrocks.connector.jdbc;
 
 import com.google.common.collect.ImmutableSet;
+import com.starrocks.catalog.ArrayType;
 import com.starrocks.catalog.PrimitiveType;
 import com.starrocks.catalog.ScalarType;
 import com.starrocks.catalog.Type;
@@ -140,11 +141,95 @@ public class ClickhouseSchemaResolver extends JDBCSchemaResolver {
                     int scale = Integer.parseInt(precisionAndScale[1]);
                     return ScalarType.createUnifiedDecimalType(precision, scale);
                 }
+            case Types.ARRAY:
+                return convertClickHouseArrayType(typeName);
             default:
                 primitiveType = PrimitiveType.UNKNOWN_TYPE;
                 break;
         }
         return ScalarType.createType(primitiveType);
+    }
+
+    /**
+     * Convert ClickHouse array type to StarRocks ArrayType
+     * Supports Array(String), Array(Int32), Array(Int64), etc.
+     */
+    private Type convertClickHouseArrayType(String typeName) {
+        if (!typeName.startsWith("Array(") || !typeName.endsWith(")")) {
+            throw new StarRocksConnectorException(
+                    "Invalid ClickHouse array type format: " + typeName);
+        }
+        
+        // Extract element type from Array(elementType)
+        String elementTypeName = typeName.substring(6, typeName.length() - 1).trim();
+        Type elementType = convertClickHouseElementType(elementTypeName);
+        return new ArrayType(elementType);
+    }
+
+    /**
+     * Convert ClickHouse element type to StarRocks Type
+     */
+    private Type convertClickHouseElementType(String elementTypeName) {
+        switch (elementTypeName.toLowerCase()) {
+            case "string":
+                return ScalarType.createVarcharType(65533);
+            case "int8":
+                return ScalarType.createType(PrimitiveType.TINYINT);
+            case "int16":
+                return ScalarType.createType(PrimitiveType.SMALLINT);
+            case "int32":
+                return ScalarType.createType(PrimitiveType.INT);
+            case "int64":
+                return ScalarType.createType(PrimitiveType.BIGINT);
+            case "uint8":
+                return ScalarType.createType(PrimitiveType.SMALLINT);
+            case "uint16":
+                return ScalarType.createType(PrimitiveType.INT);
+            case "uint32":
+                return ScalarType.createType(PrimitiveType.BIGINT);
+            case "uint64":
+                return ScalarType.createType(PrimitiveType.LARGEINT);
+            case "float32":
+                return ScalarType.createType(PrimitiveType.FLOAT);
+            case "float64":
+                return ScalarType.createType(PrimitiveType.DOUBLE);
+            case "bool":
+                return ScalarType.createType(PrimitiveType.BOOLEAN);
+            case "date":
+                return ScalarType.createType(PrimitiveType.DATE);
+            case "datetime":
+                return ScalarType.createType(PrimitiveType.DATETIME);
+            default:
+                // Handle Nullable types
+                if (elementTypeName.toLowerCase().startsWith("nullable(") && 
+                    elementTypeName.toLowerCase().endsWith(")")) {
+                    String innerType = elementTypeName.substring(9, elementTypeName.length() - 1).trim();
+                    return convertClickHouseElementType(innerType);
+                }
+                // Handle Decimal types
+                if (elementTypeName.toLowerCase().startsWith("decimal")) {
+                    return parseDecimalType(elementTypeName);
+                }
+                throw new StarRocksConnectorException(
+                        "Unsupported ClickHouse array element type: " + elementTypeName);
+        }
+    }
+
+    /**
+     * Parse ClickHouse Decimal type
+     */
+    private Type parseDecimalType(String typeName) {
+        if (typeName.toLowerCase().startsWith("decimal(") && typeName.endsWith(")")) {
+            String[] precisionAndScale = typeName.substring(8, typeName.length() - 1)
+                    .replace(" ", "").split(",");
+            if (precisionAndScale.length == 2) {
+                int precision = Integer.parseInt(precisionAndScale[0]);
+                int scale = Integer.parseInt(precisionAndScale[1]);
+                return ScalarType.createUnifiedDecimalType(precision, scale);
+            }
+        }
+        throw new StarRocksConnectorException(
+                "Invalid ClickHouse decimal type format: " + typeName);
     }
 
 

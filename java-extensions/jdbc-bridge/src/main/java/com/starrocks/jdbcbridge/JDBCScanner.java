@@ -41,6 +41,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 public class JDBCScanner {
     private String driverLocation;
@@ -143,6 +145,48 @@ public class JDBCScanner {
         return ENGINE_SPECIFIC_CLASS_MAPPING.get(className);
     }
 
+    /**
+     * Convert JDBC Array to JSON string representation for StarRocks
+     */
+    private String convertArrayToJson(java.sql.Array sqlArray) throws Exception {
+        if (sqlArray == null) {
+            return null;
+        }
+        
+        try {
+            Object[] arrayData = (Object[]) sqlArray.getArray();
+            if (arrayData == null) {
+                return "[]";
+            }
+            
+            // Convert array elements to appropriate format
+            List<Object> convertedArray = new ArrayList<>();
+            for (Object element : arrayData) {
+                if (element == null) {
+                    convertedArray.add(null);
+                } else if (element instanceof String) {
+                    convertedArray.add(element);
+                } else if (element instanceof Number) {
+                    convertedArray.add(element);
+                } else if (element instanceof Boolean) {
+                    convertedArray.add(element);
+                } else {
+                    // For other types, convert to string
+                    convertedArray.add(element.toString());
+                }
+            }
+            
+            // Use Jackson to serialize to JSON
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.writeValueAsString(convertedArray);
+        } catch (Exception e) {
+            // If conversion fails, return string representation
+            return sqlArray.toString();
+        } finally {
+            sqlArray.free();
+        }
+    }
+
     // used for cpp interface
     public List<String> getResultColumnClassNames() {
         return resultColumnClassNames;
@@ -182,6 +226,9 @@ public class JDBCScanner {
                     dataColumn[resultNumRows] = resultObject;
                 } else if (resultObject instanceof Blob) {
                     dataColumn[resultNumRows] = resultObject;
+                } else if (resultObject instanceof java.sql.Array) {
+                    // Handle JDBC Array type (for ClickHouse arrays)
+                    dataColumn[resultNumRows] = convertArrayToJson((java.sql.Array) resultObject);
                 } else if (dataColumn instanceof String[] && resultObject instanceof String) {
                     // if both sides are String, assign value directly to avoid additional calls to getString
                     dataColumn[resultNumRows] = resultObject;

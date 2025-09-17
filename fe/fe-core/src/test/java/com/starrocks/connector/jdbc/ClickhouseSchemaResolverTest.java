@@ -16,11 +16,15 @@ package com.starrocks.connector.jdbc;
 
 import com.google.common.collect.Lists;
 import com.mockrunner.mock.jdbc.MockResultSet;
+import com.starrocks.catalog.ArrayType;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.Database;
 import com.starrocks.catalog.JDBCResource;
 import com.starrocks.catalog.JDBCTable;
+import com.starrocks.catalog.PrimitiveType;
+import com.starrocks.catalog.ScalarType;
 import com.starrocks.catalog.Table;
+import com.starrocks.catalog.Type;
 import com.starrocks.qe.ConnectContext;
 import com.zaxxer.hikari.HikariDataSource;
 import mockit.Expectations;
@@ -66,21 +70,21 @@ public class ClickhouseSchemaResolverTest {
                         Types.BIGINT, Types.NUMERIC, Types.NUMERIC, Types.NUMERIC, Types.NUMERIC, Types.NUMERIC,
                         Types.FLOAT,
                         Types.DOUBLE, Types.BOOLEAN, Types.DATE, Types.TIMESTAMP, Types.VARCHAR, Types.VARCHAR,
-                        Types.DECIMAL
+                        Types.DECIMAL, Types.ARRAY, Types.ARRAY
                 ));
         columnResult.addColumn("TYPE_NAME", Arrays.asList("Int8", "UInt8", "Int16", "UInt16", "Int32", "Int64",
                 "UInt32", "UInt64", "Int128", "UInt128", "Int256", "UInt256", "Float32", "Float64", "Bool", "Date",
                 "DateTime",
-                "String", "Nullable(String)", "Decimal(9,9)"));
+                "String", "Nullable(String)", "Decimal(9,9)", "Array(String)", "Array(Int32)"));
         columnResult.addColumn("COLUMN_SIZE",
-                Arrays.asList(3, 3, 5, 5, 10, 19, 10, 20, 39, 39, 77, 78, 12, 22, 1, 10, 29, 0, 0, 9));
+                Arrays.asList(3, 3, 5, 5, 10, 19, 10, 20, 39, 39, 77, 78, 12, 22, 1, 10, 29, 0, 0, 9, 0, 0));
         columnResult.addColumn("DECIMAL_DIGITS",
-                Arrays.asList(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null, 0, 0, null, null, 9));
+                Arrays.asList(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null, 0, 0, null, null, 9, null, null));
         columnResult.addColumn("COLUMN_NAME", Arrays.asList("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l",
-                "m", "n", "o", "p", "q", "r", "s", "t"));
+                "m", "n", "o", "p", "q", "r", "s", "t", "u", "v"));
         columnResult.addColumn("IS_NULLABLE",
                 Arrays.asList("NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO",
-                        "NO", "NO", "NO", "YES", "NO"));
+                        "NO", "NO", "NO", "YES", "NO", "NO", "NO"));
         properties = new HashMap<>();
         properties.put(DRIVER_CLASS, "com.clickhouse.jdbc.ClickHouseDriver");
         properties.put(JDBCResource.URI, "jdbc:clickhouse://127.0.0.1:8123");
@@ -242,5 +246,67 @@ public class ClickhouseSchemaResolverTest {
         List<String> result = jdbcMetadata.listDbNames(new ConnectContext());
         List<String> expectResult = Lists.newArrayList("clickhouse", "template1", "test");
         Assertions.assertEquals(expectResult, result);
+    }
+
+    @Test
+    public void testArrayTypeConversion() {
+        ClickhouseSchemaResolver resolver = new ClickhouseSchemaResolver(properties);
+        
+        // Test Array(String) conversion
+        Type arrayStringType = resolver.convertColumnType(Types.ARRAY, "Array(String)", 0, 0);
+        Assertions.assertTrue(arrayStringType instanceof ArrayType);
+        ArrayType arrayString = (ArrayType) arrayStringType;
+        Assertions.assertTrue(arrayString.getItemType().isStringType());
+        
+        // Test Array(Int32) conversion
+        Type arrayIntType = resolver.convertColumnType(Types.ARRAY, "Array(Int32)", 0, 0);
+        Assertions.assertTrue(arrayIntType instanceof ArrayType);
+        ArrayType arrayInt = (ArrayType) arrayIntType;
+        Assertions.assertTrue(arrayInt.getItemType().isIntegerType());
+        
+        // Test Array(Int64) conversion
+        Type arrayBigintType = resolver.convertColumnType(Types.ARRAY, "Array(Int64)", 0, 0);
+        Assertions.assertTrue(arrayBigintType instanceof ArrayType);
+        ArrayType arrayBigint = (ArrayType) arrayBigintType;
+        Assertions.assertTrue(arrayBigint.getItemType().isBigintType());
+        
+        // Test Array(Float32) conversion
+        Type arrayFloatType = resolver.convertColumnType(Types.ARRAY, "Array(Float32)", 0, 0);
+        Assertions.assertTrue(arrayFloatType instanceof ArrayType);
+        ArrayType arrayFloat = (ArrayType) arrayFloatType;
+        Assertions.assertTrue(arrayFloat.getItemType().isFloatType());
+        
+        // Test Array(Float64) conversion
+        Type arrayDoubleType = resolver.convertColumnType(Types.ARRAY, "Array(Float64)", 0, 0);
+        Assertions.assertTrue(arrayDoubleType instanceof ArrayType);
+        ArrayType arrayDouble = (ArrayType) arrayDoubleType;
+        Assertions.assertTrue(arrayDouble.getItemType().isDoubleType());
+        
+        // Test Array(Nullable(String)) conversion
+        Type arrayNullableStringType = resolver.convertColumnType(Types.ARRAY, "Array(Nullable(String))", 0, 0);
+        Assertions.assertTrue(arrayNullableStringType instanceof ArrayType);
+        ArrayType arrayNullableString = (ArrayType) arrayNullableStringType;
+        Assertions.assertTrue(arrayNullableString.getItemType().isStringType());
+        
+        // Test Array(Decimal(10,2)) conversion
+        Type arrayDecimalType = resolver.convertColumnType(Types.ARRAY, "Array(Decimal(10,2))", 0, 0);
+        Assertions.assertTrue(arrayDecimalType instanceof ArrayType);
+        ArrayType arrayDecimal = (ArrayType) arrayDecimalType;
+        Assertions.assertTrue(arrayDecimal.getItemType().isDecimalV3());
+    }
+
+    @Test
+    public void testInvalidArrayTypeConversion() {
+        ClickhouseSchemaResolver resolver = new ClickhouseSchemaResolver(properties);
+        
+        // Test invalid array format
+        Assertions.assertThrows(Exception.class, () -> {
+            resolver.convertColumnType(Types.ARRAY, "InvalidArray", 0, 0);
+        });
+        
+        // Test unsupported element type
+        Assertions.assertThrows(Exception.class, () -> {
+            resolver.convertColumnType(Types.ARRAY, "Array(UnsupportedType)", 0, 0);
+        });
     }
 }
