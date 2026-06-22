@@ -66,6 +66,7 @@
         <zookeeper.version>3.8.6</zookeeper.version>
         <bouncycastle.version>1.84</bouncycastle.version>
         <thrift.version>0.23.0</thrift.version>
+        <tomcat-juli.version>9.0.109</tomcat-juli.version>
     </properties>
 
     <dependencyManagement>
@@ -384,6 +385,12 @@
                 <groupId>org.apache.thrift</groupId>
                 <artifactId>libthrift</artifactId>
                 <version>${thrift.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.tomcat</groupId>
+                <artifactId>tomcat-juli</artifactId>
+                <version>${tomcat-juli.version}</version>
             </dependency>
 
             <!--slf4j-->

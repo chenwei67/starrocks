@@ -77,6 +77,7 @@ subprojects {
         set("spark.version", "3.5.7")
         set("staros.version", "4.0.0")
         set("tomcat.version", "8.5.70")
+        set("tomcat-juli.version", "9.0.109")
         set("lz4-java.version", "1.10.1")
         // var sync end
     }
@@ -213,6 +214,7 @@ subprojects {
             implementation("org.apache.spark:spark-launcher_2.12:${project.ext["spark.version"]}")
             implementation("org.apache.spark:spark-sql_2.12:${project.ext["spark.version"]}")
             implementation("org.apache.thrift:libthrift:0.23.0")
+            implementation("org.apache.tomcat:tomcat-juli:${project.ext["tomcat-juli.version"]}")
             implementation("org.apache.velocity:velocity-engine-core:2.4.1")
             implementation("org.bouncycastle:bcpkix-jdk18on:${project.ext["bouncycastle.version"]}")
             implementation("org.bouncycastle:bcprov-jdk18on:${project.ext["bouncycastle.version"]}")

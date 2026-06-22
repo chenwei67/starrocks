@@ -48,6 +48,7 @@ under the License.
         <jackson-annotations.version>2.21</jackson-annotations.version>
         <spark.version>3.5.7</spark.version>
         <tomcat.version>8.5.70</tomcat.version>
+        <tomcat-juli.version>9.0.109</tomcat-juli.version>
         <parquet.version>1.15.2</parquet.version>
         <hadoop.version>3.4.3</hadoop.version>
         <gcs.connector.version>3.0.13</gcs.connector.version>
@@ -473,6 +474,12 @@ under the License.
                         <artifactId>tomcat-annotations-api</artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.tomcat</groupId>
+                <artifactId>tomcat-juli</artifactId>
+                <version>${tomcat-juli.version}</version>
             </dependency>
 
             <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-api -->
